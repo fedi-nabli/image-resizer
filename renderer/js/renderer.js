@@ -5,15 +5,17 @@ const filename = document.querySelector('#filename')
 const heightInput = document.querySelector('#height')
 const widthInput = document.querySelector('#width')
 
+// Load image and show form
 function loadImage(e) {
   const file = e.target.files[0]
 
+  // Check if file is an image
   if (!isFileImage(file)) {
     alertError('Please select an image file')
     return
   }
 
-  // Get original dimensions
+  // Add current height and width to form using the URL API
   const image = new Image()
   image.src = URL.createObjectURL(file)
   image.onload = function() {
@@ -21,15 +23,49 @@ function loadImage(e) {
     heightInput.value = this.height
   }
 
+  // Show form, image name and output path
   form.style.display = 'block'
   filename.innerText = file.name
   outputPath.innerText = path.join(os.homedir(), 'imageresizer')
 }
 
+// Make sure file is an image
 function isFileImage(file) {
   const acceptedImageTypes = ['image/gif', 'image/jpeg', 'image/png']
   return file && acceptedImageTypes.includes(file['type'])
 }
+
+// Resize image
+function resizeImage(e) {
+  e.preventDefault()
+
+  if (!img.files[0]) {
+    alertError('Please upload an image')
+    return
+  }
+
+  if (widthInput.value === '' || heightInput.value === '') {
+    alertError('Please enter a width and height')
+    return
+  }
+
+  // Electron adds a bunch of extra properties to the file object including the path
+  const imgPath = img.files[0].path
+  const width = widthInput.value
+  const height = heightInput.value
+
+  // Send to main
+  ipcRenderer.send('image:resize', {
+    imgPath,
+    width,
+    height
+  })
+}
+
+// Show message when done
+ipcRenderer.on('image:done', () => {
+  alertSuccess(`Image resized to ${widthInput.value} x ${heightInput.value}`)
+})
 
 function alertSuccess(message) {
   Toastify.toast({
@@ -57,4 +93,7 @@ function alertError(message) {
   })
 }
 
+// File select listener
 img.addEventListener('change', loadImage)
+// Form submit listener
+form.addEventListener('submit', resizeImage)
